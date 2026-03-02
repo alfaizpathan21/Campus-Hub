@@ -29,11 +29,23 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+
+                        // 🔓 Public APIs
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/admin/**")
-                        .hasRole("ADMIN")
+
+                        // 🔐 Admin APIs
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // 🔐 Faculty APIs
+                        .requestMatchers("/api/faculty/**").hasRole("FACULTY")
+
+                        // 🔐 Department APIs
                         .requestMatchers("/api/department/**")
                         .hasAnyRole("DEPARTMENT", "ADMIN")
+
+                        // 🔐 Student APIs
+                        .requestMatchers("/api/student/**").hasRole("STUDENT")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter,

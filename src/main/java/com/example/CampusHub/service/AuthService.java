@@ -1,7 +1,5 @@
 package com.example.CampusHub.service;
 
-
-
 import com.example.CampusHub.dto.LoginRequest;
 import com.example.CampusHub.dto.OtpVerificationRequest;
 import com.example.CampusHub.dto.RegisterRequest;
@@ -23,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -34,17 +33,16 @@ public class AuthService {
     private final EmailService emailService;
 
     private final Map<String, OtpData> otpStorage = new HashMap<>();
+
     // =====================================
-    // ✅ REGISTER
+    // ✅ STUDENT REGISTER (SELF REGISTER)
     // =====================================
     public String register(RegisterRequest request) {
 
-        // ✅ email domain validation
         if (!request.getEmail().endsWith("@ghrcemn.raisoni.net")) {
             throw new IllegalArgumentException("Invalid college email");
         }
 
-        // ✅ duplicate check
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new EmailAlreadyExistsException("Email already exists");
         }
@@ -57,21 +55,21 @@ public class AuthService {
                 .section(request.getSection())
                 .mobile(request.getMobile())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(UserRole.STUDENT)
+                .role(UserRole.STUDENT)   // 🔥 Force STUDENT
                 .verified(false)
                 .createdAt(LocalDateTime.now())
                 .build();
 
         userRepository.save(user);
+
         String otp = otpUtil.generateOtp();
 
         OtpData otpData = new OtpData(
                 otp,
-                LocalDateTime.now().plusMinutes(5) // 🔥 5 min expiry
+                LocalDateTime.now().plusMinutes(5)
         );
 
         otpStorage.put(request.getEmail(), otpData);
-
 
         emailService.sendOtp(request.getEmail(), otp);
 
@@ -89,17 +87,14 @@ public class AuthService {
             throw new InvalidOtpException("OTP not found");
         }
 
-// ✅ check expiry
         if (otpData.getExpiryTime().isBefore(LocalDateTime.now())) {
             otpStorage.remove(request.getEmail());
             throw new InvalidOtpException("OTP expired");
         }
 
-// ✅ check match
         if (!otpData.getOtp().equals(request.getOtp())) {
             throw new InvalidOtpException("Invalid OTP");
         }
-
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
@@ -113,7 +108,7 @@ public class AuthService {
     }
 
     // =====================================
-    // ✅ LOGIN
+    // ✅ LOGIN (ALL ROLES)
     // =====================================
     public AuthResponse login(LoginRequest request) {
 
@@ -128,13 +123,70 @@ public class AuthService {
             throw new InvalidCredentialsException("Account not verified");
         }
 
-        String token = jwtService.generateToken(user.getEmail());
+        // 🔥 Include role in JWT claims
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", user.getRole().name());
 
-        return new AuthResponse(token, "Login successful");
+        String token = jwtService.generateToken( user.getEmail());
+
+        return new AuthResponse(
+                token,
+                "Login successful",
+                user.getRole().name()  // 🔥 send role to frontend
+        );
     }
 
     // =====================================
-    // ✅ RESEND OTP (IMPORTANT)
+    // ✅ ADMIN CREATE FACULTY
+    // =====================================
+    public String createFaculty(RegisterRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyExistsException("Email already exists");
+        }
+
+        User user = User.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .department(request.getDepartment())
+                .mobile(request.getMobile())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(UserRole.FACULTY)
+                .verified(true)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        userRepository.save(user);
+
+        return "Faculty created successfully";
+    }
+
+    // =====================================
+    // ✅ ADMIN CREATE DEPARTMENT USER
+    // =====================================
+    public String createDepartmentUser(RegisterRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyExistsException("Email already exists");
+        }
+
+        User user = User.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .department(request.getDepartment())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(UserRole.DEPARTMENT)
+                .verified(true)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        userRepository.save(user);
+
+        return "Department user created successfully";
+    }
+
+    // =====================================
+    // ✅ RESEND OTP
     // =====================================
     public String resendOtp(String email) {
 
@@ -153,7 +205,6 @@ public class AuthService {
         );
 
         otpStorage.put(email, otpData);
-
 
         emailService.sendOtp(email, otp);
 
