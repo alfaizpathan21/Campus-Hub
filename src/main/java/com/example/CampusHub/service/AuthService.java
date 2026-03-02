@@ -127,7 +127,10 @@ public class AuthService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
 
-        String token = jwtService.generateToken( user.getEmail());
+        String token = jwtService.generateToken(
+                user.getEmail(),
+                user.getRole().name()
+        );
 
         return new AuthResponse(
                 token,

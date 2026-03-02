@@ -1,10 +1,6 @@
 package com.example.CampusHub.model;
 
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -24,12 +20,17 @@ public class Post {
 
     private String userId;
 
-    private String mediaUrl; // image/video
+    private String mediaUrl;
 
     private String caption;
 
+    private List<String> hashtags = new ArrayList<>();
+
     private List<String> likes = new ArrayList<>();
     private List<Comment> comments = new ArrayList<>();
+
+    private int shares = 0;
+    private int views = 0;
 
     private LocalDateTime createdAt;
 }
